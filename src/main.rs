@@ -7,7 +7,7 @@ extern crate lazy_static;
 use std::iter::FromIterator;
 use std::convert::{From, TryFrom};
 use std::collections::HashSet;
-use std::ops::Sub;
+use std::ops::{Sub, Add};
 use std::cmp::{Ordering, PartialOrd};
 use std::fmt;
 
@@ -49,11 +49,11 @@ impl Note {
         Self::try_from((note_num + interval_num) % 12).unwrap()
     }
 
-    fn down(&self, interval: &Interval) -> Self {
-        let interval_num = usize::from(interval.clone());
-        let note_num = usize::from(self.clone());
-        Self::try_from((note_num - interval_num) % 12).unwrap()
-    }
+    // fn down(&self, interval: &Interval) -> Self {
+    //     let interval_num = usize::from(interval.clone());
+    //     let note_num = usize::from(self.clone());
+    //     Self::try_from((note_num - interval_num) % 12).unwrap()
+    // }
 }
 #[allow(dead_code)]
 #[derive(Clone, Copy, PartialOrd, PartialEq, Hash, Debug, Ord, Eq)]
@@ -72,15 +72,6 @@ impl HasAccidnetals for Note {
         Note::Flattened(Box::new(self))
     }
 }
-
-// impl From<usize> for Note {
-//     fn from(n: usize) -> Note {
-//         match Note::try_from(n) {
-//             Ok(note) => note,
-//             Err(_) => panic!("Invalid note index."),
-//         }
-//     }
-// }
 
 trait EnharmonicEquiv<Rhs: ?Sized = Self> {
     fn equiv(&self, other: &Rhs) -> bool;
@@ -265,6 +256,15 @@ impl Sub for Interval {
         let second = usize::from(other);
         let neg_second = (12 as usize).checked_sub(second % 12).unwrap() % 12;
         Interval::try_from((first + neg_second) % 12).unwrap()
+     }
+}
+
+impl Add for Interval {
+    type Output = Interval;
+    fn add(self, other: Self) -> Self {
+        let first = usize::from(self);
+        let second = usize::from(other);
+        Interval::try_from((first + second) % 12).unwrap()
     }
 }
 
@@ -278,13 +278,7 @@ impl Chord {
 }
 
 lazy_static! {
-    static ref MAJOR_TRIAD: Chord = chord({
-        let mut m = HashSet::new();
-        m.insert(Unison);
-        m.insert(Third);
-        m.insert(Fifth);
-        m
-    });
+    static ref MAJOR_TRIAD: Chord = chord(hashset!{Unison, Third, Fifth});
 
     static ref MAJOR_SCALE: Scale = scale(
         vec![Unison, Second, Third, Fourth, Fifth, Sixth, Seventh]
@@ -299,5 +293,4 @@ fn main() {
     for chord in MAJOR_SCALE.diatonic_chords() {
         println!("{}", chord);
     }
-    // println!("{:?}", Unison - Second.flat());
 }
