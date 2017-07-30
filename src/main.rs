@@ -29,7 +29,7 @@ trait HasAccidnetals
 }
 
 #[allow(dead_code)]
-#[derive(Clone, PartialOrd, PartialEq, Hash, Debug, Ord, Eq)]
+#[derive(Clone, PartialEq, Hash, Debug, Eq)]
 enum Note {
     A,
     B,
@@ -46,20 +46,20 @@ impl Note {
     fn up(&self, interval: &Interval) -> Self {
         let interval_num = usize::from(interval.clone());
         let note_num = usize::from(self.clone());
-        Self::from((note_num + interval_num) % 12)
+        Self::try_from((note_num + interval_num) % 12).unwrap()
     }
 
     fn down(&self, interval: &Interval) -> Self {
         let interval_num = usize::from(interval.clone());
         let note_num = usize::from(self.clone());
-        Self::from((note_num - interval_num) % 12)
+        Self::try_from((note_num - interval_num) % 12).unwrap()
     }
 }
 #[allow(dead_code)]
 #[derive(Clone, Copy, PartialOrd, PartialEq, Hash, Debug, Ord, Eq)]
 enum Accidental {
-    Natural,
     Flat,
+    Natural,
     Sharp,
 }
 
@@ -73,14 +73,14 @@ impl HasAccidnetals for Note {
     }
 }
 
-impl From<usize> for Note {
-    fn from(n: usize) -> Note {
-        match Note::try_from(n) {
-            Ok(note) => note,
-            Err(_) => panic!("Invalid note index."),
-        }
-    }
-}
+// impl From<usize> for Note {
+//     fn from(n: usize) -> Note {
+//         match Note::try_from(n) {
+//             Ok(note) => note,
+//             Err(_) => panic!("Invalid note index."),
+//         }
+//     }
+// }
 
 trait EnharmonicEquiv<Rhs: ?Sized = Self> {
     fn equiv(&self, other: &Rhs) -> bool;
