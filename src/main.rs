@@ -241,8 +241,8 @@ impl Scale {
         for (i, interval) in intervals.iter().enumerate() {
             let mut chord_intervals: HashSet<Interval> = HashSet::new();
             chord_intervals.insert(intervals[i].clone() - interval.clone());
-            chord_intervals.insert(intervals[(i+2) % n].clone() - interval.clone());
-            chord_intervals.insert(intervals[(i+4) % n].clone() - interval.clone());
+            chord_intervals.insert(intervals[(i + 2) % n].clone() - interval.clone());
+            chord_intervals.insert(intervals[(i + 4) % n].clone() - interval.clone());
             chords.push(chord(chord_intervals));
         }
         chords
@@ -256,7 +256,7 @@ impl Sub for Interval {
         let second = usize::from(other);
         let neg_second = (12 as usize).checked_sub(second % 12).unwrap() % 12;
         Interval::try_from((first + neg_second) % 12).unwrap()
-     }
+    }
 }
 
 impl Add for Interval {
@@ -277,20 +277,43 @@ impl Chord {
     }
 }
 
-lazy_static! {
-    static ref MAJOR_TRIAD: Chord = chord(hashset!{Unison, Third, Fifth});
-
-    static ref MAJOR_SCALE: Scale = scale(
-        vec![Unison, Second, Third, Fourth, Fifth, Sixth, Seventh]
-    );
+macro_rules! chord {
+    ( $( $x:expr ),* ) => {
+        {
+        let mut ret = HashSet::new();
+        $(
+            ret.insert($x);
+        )*
+        chord(ret)
+        }
+    }
 }
 
+macro_rules! scale {
+    ( $( $x:expr ),* ) => {
+        {
+            let mut ret = Vec::new();
+            $(
+                ret.push($x);
+            )*
+                scale(ret)
+        }
+    }
+}
+lazy_static! {
+    static ref MAJOR_TRIAD: Chord = chord![Unison,Third,Fifth];
+
+    static ref MAJOR_SCALE: Scale = scale![Unison,Second,Third,Fourth,Fifth,Sixth,Seventh];
+    static ref MELODIC_MINOR: Scale = scale![Unison,Second,Third.flat(),Fourth,Fifth,Sixth.flat(),Seventh]
+;
+}
 
 fn main() {
     use Note::*;
     use Accidental::*;
     use Interval::*;
-    for chord in MAJOR_SCALE.diatonic_chords() {
+    println!("{}", *MAJOR_TRIAD);
+    for chord in MELODIC_MINOR.diatonic_chords() {
         println!("{}", chord);
     }
 }
