@@ -11,24 +11,52 @@ enum Note {
     E,
     F,
     G,
-    Flat(Box<Note>),
-    Sharp(Box<Note>),
+    Flattened(Box<Note>),
+    Sharpened(Box<Note>),
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, PartialOrd, PartialEq, Hash, Debug, Ord, Eq)]
+enum Accidental {
+    Natural,
+    Flat,
+    Sharp,
 }
 
 fn sharp(note: Note) -> Note {
-    Note::Sharp(Box::new(note))
+    Note::Sharpened(Box::new(note))
 }
 
 fn flat(note: Note) -> Note {
-    Note::Flat(Box::new(note))
+    Note::Flattened(Box::new(note))
 }
 
+impl Note {
+    fn modify(&self, &acc: &Accidental) -> Note {
+        use Accidental::*;
+        match acc {
+            Natural => self.clone(),
+            Flat => flat(self.clone()),
+            Sharp => sharp(self.clone()),
+        }
+    }
+}
 impl From<usize> for Note {
     fn from(n: usize) -> Note {
         match Note::try_from(n) {
             Ok(note) => note,
             Err(_) => panic!("Invalid note index."),
         }
+    }
+}
+
+trait EnharmonicEquiv<Rhs: ?Sized = Self> {
+    fn equiv(&self, other: &Rhs) -> bool;
+}
+
+impl EnharmonicEquiv<Note> for Note {
+    fn equiv(&self, other: &Note) -> bool {
+        usize::from(self.clone()) == usize::from(other.clone())
     }
 }
 
@@ -43,8 +71,8 @@ impl From<Note> for usize {
         E => 7,
         F => 8,
         G => 10,
-        Flat(n) => (usize::from(*n) - 1) % 12,
-        Sharp(n) => (usize::from(*n) + 1) % 12,
+        Flattened(n) => (usize::from(*n) - 1) % 12,
+        Sharpened(n) => (usize::from(*n) + 1) % 12,
         }
     }
 
@@ -75,5 +103,7 @@ impl TryFrom<usize> for Note {
 
 
 fn main() {
-    println!("Hello, world!");
+    use Note::*;
+    use Accidental::*;
+    println!("{:?}", A.modify(&Flat));
 }
