@@ -199,7 +199,7 @@ fn chord(ints: HashSet<Interval>) -> Chord {
 }
 
 impl Chord {
-    fn notes(&self, base: &Note) -> HashSet<Note> {
+    fn based_on(&self, base: &Note) -> HashSet<Note> {
         self.intervals.iter().map(|interval| {
             base.up(interval)
         }).collect()
@@ -221,5 +221,5 @@ fn main() {
     use Note::*;
     use Accidental::*;
     use Interval::*;
-    println!("{:?}", MAJOR.notes(&F));
+    println!("{:?}", MAJOR.based_on(&F));
 }
