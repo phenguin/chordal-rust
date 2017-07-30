@@ -119,27 +119,37 @@ enum Interval {
     Sharpened(Box<Interval>),
 }
 
-// impl TryFrom<usize> for Interval {
-//     type Error = ();
-//     fn try_from(n: usize) -> Result<Interval, ()> {
-//         use Note::*;
-//         match n {
-//             0 => Ok(Unison),
-//             1 => Ok(flat(B)),
-//             2 => Ok(B),
-//             3 => Ok(C),
-//             4 => Ok(flat(D)),
-//             5 => Ok(D),
-//             6 => Ok(flat(E)),
-//             7 => Ok(E),
-//             8 => Ok(F),
-//             9 => Ok(flat(G)),
-//             10 => Ok(G),
-//             11 => Ok(flat(A)),
-//             _ => Err(()),
-//         }
-//     }
-// }
+impl HasAccidnetals for Interval {
+    fn sharp(self) -> Self {
+        Interval::Sharpened(Box::new(self))
+    }
+
+    fn flat(self) -> Self {
+        Interval::Flattened(Box::new(self))
+    }
+}
+
+impl TryFrom<usize> for Interval {
+    type Error = ();
+    fn try_from(n: usize) -> Result<Interval, ()> {
+        use Interval::*;
+        match n {
+            0 => Ok(Unison),
+            1 => Ok(Second.flat()),
+            2 => Ok(Second),
+            3 => Ok(Third.flat()),
+            4 => Ok(Third),
+            5 => Ok(Fourth),
+            6 => Ok(Fifth.flat()),
+            7 => Ok(Fifth),
+            8 => Ok(Sixth.flat()),
+            9 => Ok(Sixth),
+            10 => Ok(Seventh.flat()),
+            11 => Ok(Seventh),
+            _ => Err(()),
+        }
+    }
+}
 
 fn main() {
     use Note::*;
