@@ -1,12 +1,17 @@
 #![feature(try_from)]
-#[macro_use] extern crate maplit;
-#[macro_use] extern crate lazy_static;
+#[macro_use]
+extern crate maplit;
+#[macro_use]
+extern crate lazy_static;
 
+use std::iter::FromIterator;
 use std::convert::{From, TryFrom};
 use std::collections::HashSet;
+use std::ops::Sub;
+use std::cmp::{Ordering, PartialOrd};
+use std::fmt;
 
 use Interval::*;
-
 
 trait HasAccidnetals
     where Self: Sized
@@ -126,7 +131,7 @@ impl TryFrom<usize> for Note {
     }
 }
 
-#[derive(Clone, PartialOrd, PartialEq, Hash, Debug, Ord, Eq)]
+#[derive(Clone, PartialEq, Hash, Debug, Ord, Eq)]
 enum Interval {
     Unison,
     Second,
@@ -137,6 +142,12 @@ enum Interval {
     Seventh,
     Flattened(Box<Interval>),
     Sharpened(Box<Interval>),
+}
+
+impl PartialOrd for Interval {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        usize::from(self.clone()).partial_cmp(&usize::from(other.clone()))
+    }
 }
 
 impl HasAccidnetals for Interval {
@@ -188,32 +199,96 @@ impl From<Interval> for usize {
     }
 }
 
+impl Interval {
+    fn up_semitones(self, n: usize) -> Interval {
+        let rep: usize = usize::from(self);
+        Interval::try_from((rep + n) % 12).unwrap()
+    }
+}
+
+#[derive(Debug)]
 struct Chord {
     intervals: HashSet<Interval>,
 }
 
+impl fmt::Display for Chord {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut intervals = Vec::from_iter(self.intervals.iter().cloned());
+        intervals.sort();
+        write!(f, "[")?;
+        for i in &intervals {
+            write!(
+                f,
+                "{:?} ",
+                i,
+            )?;
+        }
+        write!(f, "]")
+    }
+}
+
+#[derive(Debug)]
+struct Scale {
+    intervals: Vec<Interval>,
+}
+
+
+
 fn chord(ints: HashSet<Interval>) -> Chord {
-    Chord {
-        intervals: ints,
+    Chord { intervals: ints }
+}
+
+fn scale(ints: Vec<Interval>) -> Scale {
+    Scale { intervals: ints }
+}
+
+impl Scale {
+    fn diatonic_chords(&self) -> Vec<Chord> {
+        let mut chords = Vec::new();
+        let intervals = &self.intervals;
+        let n = intervals.len();
+        for (i, interval) in intervals.iter().enumerate() {
+            let mut chord_intervals: HashSet<Interval> = HashSet::new();
+            chord_intervals.insert(intervals[i].clone() - interval.clone());
+            chord_intervals.insert(intervals[(i+2) % n].clone() - interval.clone());
+            chord_intervals.insert(intervals[(i+4) % n].clone() - interval.clone());
+            chords.push(chord(chord_intervals));
+        }
+        chords
+    }
+}
+
+impl Sub for Interval {
+    type Output = Interval;
+    fn sub(self, other: Self) -> Self {
+        let first = usize::from(self);
+        let second = usize::from(other);
+        let neg_second = (12 as usize).checked_sub(second % 12).unwrap() % 12;
+        Interval::try_from((first + neg_second) % 12).unwrap()
     }
 }
 
 impl Chord {
     fn based_on(&self, base: &Note) -> HashSet<Note> {
-        self.intervals.iter().map(|interval| {
-            base.up(interval)
-        }).collect()
+        self.intervals
+            .iter()
+            .map(|interval| base.up(interval))
+            .collect()
     }
 }
 
 lazy_static! {
-    static ref MAJOR: Chord = chord({
+    static ref MAJOR_TRIAD: Chord = chord({
         let mut m = HashSet::new();
         m.insert(Unison);
         m.insert(Third);
         m.insert(Fifth);
         m
     });
+
+    static ref MAJOR_SCALE: Scale = scale(
+        vec![Unison, Second, Third, Fourth, Fifth, Sixth, Seventh]
+    );
 }
 
 
@@ -221,5 +296,8 @@ fn main() {
     use Note::*;
     use Accidental::*;
     use Interval::*;
-    println!("{:?}", MAJOR.based_on(&F));
+    for chord in MAJOR_SCALE.diatonic_chords() {
+        println!("{}", chord);
+    }
+    // println!("{:?}", Unison - Second.flat());
 }
