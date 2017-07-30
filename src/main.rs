@@ -32,6 +32,24 @@ impl From<usize> for Note {
     }
 }
 
+impl From<Note> for usize {
+    fn from(note: Note) -> usize {
+        use Note::*;
+        match note {
+        A => 0,
+        B => 2,
+        C => 3,
+        D => 5,
+        E => 7,
+        F => 8,
+        G => 10,
+        Flat(n) => (usize::from(*n) - 1) % 12,
+        Sharp(n) => (usize::from(*n) + 1) % 12,
+        }
+    }
+
+}
+
 impl TryFrom<usize> for Note {
     type Error = ();
     fn try_from(n: usize) -> Result<Note, ()> {
