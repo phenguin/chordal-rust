@@ -30,6 +30,20 @@ enum Note {
     Sharpened(Box<Note>),
 }
 
+impl Note {
+    fn up(&self, interval: &Interval) -> Self {
+        let interval_num = usize::from(interval.clone());
+        let note_num = usize::from(self.clone());
+        Self::from((note_num + interval_num) % 12)
+    }
+
+    fn down(&self, interval: &Interval) -> Self {
+        let interval_num = usize::from(interval.clone());
+        let note_num = usize::from(self.clone());
+        Self::from((note_num - interval_num) % 12)
+    }
+
+}
 #[allow(dead_code)]
 #[derive(Clone, Copy, PartialOrd, PartialEq, Hash, Debug, Ord, Eq)]
 enum Accidental {
@@ -151,8 +165,26 @@ impl TryFrom<usize> for Interval {
     }
 }
 
+impl From<Interval> for usize {
+    fn from(interval: Interval) -> usize {
+        use Interval::*;
+        match interval {
+            Unison => 0,
+            Second => 2,
+            Third => 4,
+            Fourth => 5,
+            Fifth => 7,
+            Sixth => 9,
+            Seventh => 11,
+            Flattened(i) => (usize::from(*i) - 1) % 12,
+            Sharpened(i) => (usize::from(*i) + 1) % 12,
+        }
+    }
+}
+
 fn main() {
     use Note::*;
     use Accidental::*;
-    println!("{:?}", A.modify(&Flat));
+    use Interval::*;
+    println!("{:?}", C.up(&Third.sharp()));
 }
