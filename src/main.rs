@@ -1,5 +1,12 @@
 #![feature(try_from)]
+#[macro_use] extern crate maplit;
+#[macro_use] extern crate lazy_static;
+
 use std::convert::{From, TryFrom};
+use std::collections::HashSet;
+
+use Interval::*;
+
 
 trait HasAccidnetals
     where Self: Sized
@@ -42,7 +49,6 @@ impl Note {
         let note_num = usize::from(self.clone());
         Self::from((note_num - interval_num) % 12)
     }
-
 }
 #[allow(dead_code)]
 #[derive(Clone, Copy, PartialOrd, PartialEq, Hash, Debug, Ord, Eq)]
@@ -182,9 +188,38 @@ impl From<Interval> for usize {
     }
 }
 
+struct Chord {
+    intervals: HashSet<Interval>,
+}
+
+fn chord(ints: HashSet<Interval>) -> Chord {
+    Chord {
+        intervals: ints,
+    }
+}
+
+impl Chord {
+    fn notes(&self, base: &Note) -> HashSet<Note> {
+        self.intervals.iter().map(|interval| {
+            base.up(interval)
+        }).collect()
+    }
+}
+
+lazy_static! {
+    static ref MAJOR: Chord = chord({
+        let mut m = HashSet::new();
+        m.insert(Unison);
+        m.insert(Third);
+        m.insert(Fifth);
+        m
+    });
+}
+
+
 fn main() {
     use Note::*;
     use Accidental::*;
     use Interval::*;
-    println!("{:?}", C.up(&Third.sharp()));
+    println!("{:?}", MAJOR.notes(&F));
 }
