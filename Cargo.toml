@@ -6,3 +6,4 @@ authors = ["Justin Cullen <jcullen@alum.mit.edu>"]
 [dependencies]
 maplit = "*"
 lazy_static = "*"
+dump = "*"

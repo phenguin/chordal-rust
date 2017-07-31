@@ -3,12 +3,14 @@
 extern crate maplit;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate dump;
 
 use std::iter::FromIterator;
 use std::convert::{From, TryFrom};
 use std::collections::HashSet;
 use std::ops::{Sub, Add};
-use std::cmp::{Ordering, PartialOrd};
+use std::cmp::{Ordering, PartialOrd, Ord};
 use std::fmt;
 
 use Interval::*;
@@ -49,11 +51,11 @@ impl Note {
         Self::try_from((note_num + interval_num) % 12).unwrap()
     }
 
-    // fn down(&self, interval: &Interval) -> Self {
-    //     let interval_num = usize::from(interval.clone());
-    //     let note_num = usize::from(self.clone());
-    //     Self::try_from((note_num - interval_num) % 12).unwrap()
-    // }
+    fn down(&self, interval: &Interval) -> Self {
+        let interval_num = usize::from(interval.clone());
+        let note_num = usize::from(self.clone());
+        Self::try_from(mod_sub(note_num, interval_num, 12)).unwrap()
+    }
 }
 #[allow(dead_code)]
 #[derive(Clone, Copy, PartialOrd, PartialEq, Hash, Debug, Ord, Eq)]
@@ -190,10 +192,30 @@ impl From<Interval> for usize {
     }
 }
 
+fn mod_sub(first: usize, second: usize, base: usize) -> usize {
+    let neg_second = base.checked_sub(second % base).unwrap();
+    (first + neg_second) % base
+}
+
 impl Interval {
     fn up_semitones(self, n: usize) -> Interval {
         let rep: usize = usize::from(self);
         Interval::try_from((rep + n) % 12).unwrap()
+    }
+    fn equiv_with_base(self, other: &Self) -> Self {
+        let my_pitch = usize::from(self.clone());
+        let their_pitch = usize::from(other.clone());
+        println!("{}", my_pitch);
+        println!("{}", their_pitch);
+        let up_diff = mod_sub(their_pitch, my_pitch, 12);
+        println!("{}", up_diff);
+        let down_diff = mod_sub(my_pitch, their_pitch, 12);
+        println!("{}", down_diff);
+        match up_diff.cmp(&down_diff) {
+            Ordering::Greater => self.flat().equiv_with_base(other),
+            Ordering::Less => self.sharp().equiv_with_base(other),
+            Ordering::Equal => self,
+        }
     }
 }
 
@@ -254,8 +276,7 @@ impl Sub for Interval {
     fn sub(self, other: Self) -> Self {
         let first = usize::from(self);
         let second = usize::from(other);
-        let neg_second = (12 as usize).checked_sub(second % 12).unwrap() % 12;
-        Interval::try_from((first + neg_second) % 12).unwrap()
+        Interval::try_from(mod_sub(first, second, 12)).unwrap()
     }
 }
 
@@ -312,8 +333,8 @@ fn main() {
     use Note::*;
     use Accidental::*;
     use Interval::*;
-    println!("{}", *MAJOR_TRIAD);
-    for chord in MELODIC_MINOR.diatonic_chords() {
-        println!("{}", chord);
-    }
+    dump!(Fifth.equiv_with_base(&Fourth));
+    // for chord in MELODIC_MINOR.diatonic_chords() {
+    //     println!("{}", chord);
+    // }
 }
