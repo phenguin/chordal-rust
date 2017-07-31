@@ -1,3 +1,4 @@
+#![allow(unused)]
 #![feature(try_from)]
 #[macro_use]
 extern crate maplit;
@@ -7,13 +8,52 @@ extern crate lazy_static;
 extern crate dump;
 
 use std::iter::FromIterator;
-use std::convert::{From, TryFrom};
+use std::convert::{From, TryFrom, TryInto};
 use std::collections::HashSet;
 use std::ops::{Sub, Add};
 use std::cmp::{Ordering, PartialOrd, Ord};
 use std::fmt;
 
 use Interval::*;
+
+// Basically integers modulo 12.
+#[derive(Clone, Copy, PartialEq, Hash, Debug, Eq)]
+struct PitchClass {
+    rep: i8,
+}
+
+fn mod12(n: i8) -> i8 {
+    ((n % 12) + 12) % 12
+}
+
+// Convenience method for unsafe construction. Keep private.
+fn pc<T: Into<i8>>(it: T) -> PitchClass {
+    PitchClass { rep: it.into() }
+}
+
+impl Shiftable for PitchClass {
+    fn shift<T: Into<i8>>(self, amt: T) -> Self {
+        pc(mod12(self.rep + amt.into()))
+    }
+}
+
+impl Add for PitchClass {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        pc(mod12(self.rep + other.rep))
+    }
+}
+
+impl Sub for PitchClass {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        pc(mod12(self.rep - other.rep))
+    }
+}
+
+trait Shiftable {
+    fn shift<T: Into<i8>>(self, amt: T) -> Self;
+}
 
 trait HasAccidnetals
     where Self: Sized
@@ -46,15 +86,15 @@ enum Note {
 
 impl Note {
     fn up(&self, interval: &Interval) -> Self {
-        let interval_num = usize::from(interval.clone());
-        let note_num = usize::from(self.clone());
-        Self::try_from((note_num + interval_num) % 12).unwrap()
+        let semitones = interval.semitones();
+        let note_num = PitchClass::from(self.clone());
+        Note::from(note_num.shift(semitones))
     }
 
     fn down(&self, interval: &Interval) -> Self {
-        let interval_num = usize::from(interval.clone());
-        let note_num = usize::from(self.clone());
-        Self::try_from(mod_sub(note_num, interval_num, 12)).unwrap()
+        let semitones = interval.semitones();
+        let note_num = PitchClass::from(self.clone());
+        Note::from(note_num.shift(-1 * semitones))
     }
 }
 #[allow(dead_code)]
@@ -81,45 +121,45 @@ trait EnharmonicEquiv<Rhs: ?Sized = Self> {
 
 impl EnharmonicEquiv<Note> for Note {
     fn equiv(&self, other: &Note) -> bool {
-        usize::from(self.clone()) == usize::from(other.clone())
+        PitchClass::from(self.clone()) == PitchClass::from(other.clone())
     }
 }
 
-impl From<Note> for usize {
-    fn from(note: Note) -> usize {
+impl From<Note> for PitchClass {
+    fn from(note: Note) -> PitchClass {
         use Note::*;
         match note {
-            A => 0,
-            B => 2,
-            C => 3,
-            D => 5,
-            E => 7,
-            F => 8,
-            G => 10,
-            Flattened(n) => (usize::from(*n) - 1) % 12,
-            Sharpened(n) => (usize::from(*n) + 1) % 12,
+            A => pc(0),
+            B => pc(2),
+            C => pc(3),
+            D => pc(5),
+            E => pc(7),
+            F => pc(8),
+            G => pc(10),
+            Flattened(n) => PitchClass::from(*n).shift(-1),
+            Sharpened(n) => PitchClass::from(*n).shift(1),
         }
     }
 }
 
-impl TryFrom<usize> for Note {
-    type Error = ();
-    fn try_from(n: usize) -> Result<Note, ()> {
+impl From<PitchClass> for Note {
+    fn from(pitch: PitchClass) -> Note {
         use Note::*;
+        let n = pitch.rep;
         match n {
-            0 => Ok(A),
-            1 => Ok(B.flat()),
-            2 => Ok(B),
-            3 => Ok(C),
-            4 => Ok(D.flat()),
-            5 => Ok(D),
-            6 => Ok(E.flat()),
-            7 => Ok(E),
-            8 => Ok(F),
-            9 => Ok(G.flat()),
-            10 => Ok(G),
-            11 => Ok(A.flat()),
-            _ => Err(()),
+            0 => A,
+            1 => B.flat(),
+            2 => B,
+            3 => C,
+            4 => D.flat(),
+            5 => D,
+            6 => E.flat(),
+            7 => E,
+            8 => F,
+            9 => G.flat(),
+            10 => G,
+            11 => A.flat(),
+            _ => unreachable!(),
         }
     }
 }
@@ -139,7 +179,7 @@ enum Interval {
 
 impl PartialOrd for Interval {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        usize::from(self.clone()).partial_cmp(&usize::from(other.clone()))
+        self.semitones().partial_cmp(&other.semitones())
     }
 }
 
@@ -153,69 +193,79 @@ impl HasAccidnetals for Interval {
     }
 }
 
-impl TryFrom<usize> for Interval {
-    type Error = ();
-    fn try_from(n: usize) -> Result<Interval, ()> {
+impl From<PitchClass> for Interval {
+    fn from(pitch: PitchClass) -> Interval {
         use Interval::*;
+        let n = pitch.rep;
         match n {
-            0 => Ok(Unison),
-            1 => Ok(Second.flat()),
-            2 => Ok(Second),
-            3 => Ok(Third.flat()),
-            4 => Ok(Third),
-            5 => Ok(Fourth),
-            6 => Ok(Fifth.flat()),
-            7 => Ok(Fifth),
-            8 => Ok(Sixth.flat()),
-            9 => Ok(Sixth),
-            10 => Ok(Seventh.flat()),
-            11 => Ok(Seventh),
-            _ => Err(()),
+            0 => Unison,
+            1 => Second.flat(),
+            2 => Second,
+            3 => Third.flat(),
+            4 => Third,
+            5 => Fourth,
+            6 => Fifth.flat(),
+            7 => Fifth,
+            8 => Sixth.flat(),
+            9 => Sixth,
+            10 => Seventh.flat(),
+            11 => Seventh,
+            _ => unreachable!(),
         }
     }
 }
 
-impl From<Interval> for usize {
-    fn from(interval: Interval) -> usize {
+impl From<Interval> for PitchClass {
+    fn from(interval: Interval) -> PitchClass {
         use Interval::*;
         match interval {
-            Unison => 0,
-            Second => 2,
-            Third => 4,
-            Fourth => 5,
-            Fifth => 7,
-            Sixth => 9,
-            Seventh => 11,
-            Flattened(i) => (usize::from(*i) - 1) % 12,
-            Sharpened(i) => (usize::from(*i) + 1) % 12,
+            Unison => pc(0),
+            Second => pc(2),
+            Third => pc(4),
+            Fourth => pc(5),
+            Fifth => pc(7),
+            Sixth => pc(9),
+            Seventh => pc(11),
+            Flattened(i) => PitchClass::from(*i).shift(-1),
+            Sharpened(i) => PitchClass::from(*i).shift(1),
         }
     }
-}
-
-fn mod_sub(first: usize, second: usize, base: usize) -> usize {
-    let neg_second = base.checked_sub(second % base).unwrap();
-    (first + neg_second) % base
 }
 
 impl Interval {
-    fn up_semitones(self, n: usize) -> Interval {
-        let rep: usize = usize::from(self);
-        Interval::try_from((rep + n) % 12).unwrap()
+    fn semitones(&self) -> i8 {
+        use Interval::*;
+        match self {
+            &Unison => 0,
+            &Second => 2,
+            &Third => 4,
+            &Fourth => 5,
+            &Fifth => 7,
+            &Sixth => 9,
+            &Seventh => 11,
+            &Flattened(ref i) => i.semitones() - 1,
+            &Sharpened(ref i) => i.semitones() + 1,
+        }
     }
+
     fn equiv_with_base(self, other: &Self) -> Self {
-        let my_pitch = usize::from(self.clone());
-        let their_pitch = usize::from(other.clone());
-        println!("{}", my_pitch);
-        println!("{}", their_pitch);
-        let up_diff = mod_sub(their_pitch, my_pitch, 12);
-        println!("{}", up_diff);
-        let down_diff = mod_sub(my_pitch, their_pitch, 12);
-        println!("{}", down_diff);
+        let my_pitch = PitchClass::from(self.clone());
+        let their_pitch = PitchClass::from(other.clone());
+        let up_diff = (their_pitch - my_pitch).rep;
+        dump!(up_diff);
+        let down_diff = (my_pitch - their_pitch).rep;
+        dump!(down_diff);
         match up_diff.cmp(&down_diff) {
             Ordering::Greater => self.flat().equiv_with_base(other),
             Ordering::Less => self.sharp().equiv_with_base(other),
             Ordering::Equal => self,
         }
+    }
+}
+
+impl Shiftable for Interval {
+    fn shift<T: Into<i8>>(self, amt: T) -> Self {
+        PitchClass::from(self).shift(amt).into()
     }
 }
 
@@ -259,12 +309,14 @@ impl Scale {
     fn diatonic_chords(&self) -> Vec<Chord> {
         let mut chords = Vec::new();
         let intervals = &self.intervals;
+        dump!(intervals);
         let n = intervals.len();
         for (i, interval) in intervals.iter().enumerate() {
             let mut chord_intervals: HashSet<Interval> = HashSet::new();
-            chord_intervals.insert(intervals[i].clone() - interval.clone());
-            chord_intervals.insert(intervals[(i + 2) % n].clone() - interval.clone());
-            chord_intervals.insert(intervals[(i + 4) % n].clone() - interval.clone());
+            let semitones = interval.semitones();
+            chord_intervals.insert(intervals[i].clone().shift(-semitones));
+            chord_intervals.insert(intervals[(i + 2) % n].clone().shift(-semitones));
+            chord_intervals.insert(intervals[(i + 4) % n].clone().shift(-semitones));
             chords.push(chord(chord_intervals));
         }
         chords
@@ -274,18 +326,18 @@ impl Scale {
 impl Sub for Interval {
     type Output = Interval;
     fn sub(self, other: Self) -> Self {
-        let first = usize::from(self);
-        let second = usize::from(other);
-        Interval::try_from(mod_sub(first, second, 12)).unwrap()
+        let first = PitchClass::from(self);
+        let second = PitchClass::from(other);
+        Interval::from(second - first)
     }
 }
 
 impl Add for Interval {
     type Output = Interval;
     fn add(self, other: Self) -> Self {
-        let first = usize::from(self);
-        let second = usize::from(other);
-        Interval::try_from((first + second) % 12).unwrap()
+        let first = PitchClass::from(self);
+        let second = PitchClass::from(other);
+        Interval::from(second - first)
     }
 }
 
@@ -334,7 +386,7 @@ fn main() {
     use Accidental::*;
     use Interval::*;
     dump!(Fifth.equiv_with_base(&Fourth));
-    // for chord in MELODIC_MINOR.diatonic_chords() {
-    //     println!("{}", chord);
-    // }
+    for chord in MAJOR_SCALE.diatonic_chords() {
+        println!("{}", chord);
+    }
 }
