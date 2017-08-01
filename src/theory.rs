@@ -1,9 +1,12 @@
+#![feature(const_fn)]
+
 use std::iter::FromIterator;
 use std::convert::{From, TryFrom, TryInto};
 use std::collections::HashSet;
 use std::ops::{Sub, Add};
 use std::cmp::{Ordering, PartialOrd, Ord};
 use std::fmt;
+use std::ops::Deref;
 
 use self::Accidental::*;
 
@@ -52,10 +55,10 @@ trait HasAccidentals
     type Output: HasAccidentals;
     fn flat(self) -> Self::Output;
     fn sharp(self) -> Self::Output;
-    fn nat(self) -> Self::Output;
+    fn natural(self) -> Self::Output;
     fn modify(self, &acc: &Accidental) -> Self::Output {
         match acc {
-            Natural => self.nat(),
+            Natural => self.natural(),
             Flat => self.flat(),
             Sharp => self.sharp(),
         }
@@ -77,17 +80,13 @@ enum NoteBase {
 pub struct Note(NoteBase, i8);
 
 impl Note {
-    fn base(self) -> NoteBase {
-        self.0
-    }
-
-    pub fn up(&self, interval: &Interval) -> Self {
+    pub fn up(&self, interval: Interval) -> Self {
         let semitones = interval.semitones();
         let note_num = PitchClass::from(self.clone());
         Note::from(note_num.shift(semitones))
     }
 
-    pub fn down(&self, interval: &Interval) -> Self {
+    pub fn down(&self, interval: Interval) -> Self {
         let semitones = interval.semitones();
         let note_num = PitchClass::from(self.clone());
         Note::from(note_num.shift(-1 * semitones))
@@ -104,15 +103,15 @@ pub enum Accidental {
 impl HasAccidentals for NoteBase {
     type Output = Note;
     fn sharp(self) -> Note {
-        self.nat().sharp()
+        self.natural().sharp()
     }
 
-    fn nat(self) -> Note {
+    fn natural(self) -> Note {
         Note(self, 0)
     }
 
     fn flat(self) -> Note {
-        self.nat().flat()
+        self.natural().flat()
     }
 }
 
@@ -122,8 +121,8 @@ impl HasAccidentals for Note {
         Note(self.0, self.1 + 1)
     }
 
-    fn nat(self) -> Self {
-        self.base().nat()
+    fn natural(self) -> Self {
+        self.0.natural()
     }
 
     fn flat(self) -> Self {
@@ -164,30 +163,36 @@ impl From<NoteBase> for Note {
     }
 }
 
+impl From<IntervalBase> for Interval {
+    fn from(base: IntervalBase) -> Interval {
+        Interval(base, 0)
+    }
+}
+
 impl From<PitchClass> for Note {
     fn from(pitch: PitchClass) -> Note {
         let n = pitch.rep;
         use self::NoteBase::*;
         match n {
-            0 => A.nat(),
+            0 => A.natural(),
             1 => B.flat(),
-            2 => B.nat(),
-            3 => C.nat(),
+            2 => B.natural(),
+            3 => C.natural(),
             4 => D.flat(),
-            5 => D.nat(),
+            5 => D.natural(),
             6 => E.flat(),
-            7 => E.nat(),
-            8 => F.nat(),
+            7 => E.natural(),
+            8 => F.natural(),
             9 => G.flat(),
-            10 => G.nat(),
+            10 => G.natural(),
             11 => A.flat(),
             _ => unreachable!(),
         }
     }
 }
 
-#[derive(Clone, PartialEq, Hash, Debug, Ord, Eq)]
-pub enum Interval {
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Ord, Eq)]
+enum IntervalBase {
     Unison,
     Second,
     Third,
@@ -195,9 +200,16 @@ pub enum Interval {
     Fifth,
     Sixth,
     Seventh,
-    Flattened(Box<Interval>),
-    Sharpened(Box<Interval>),
 }
+
+impl IntervalBase {
+    fn nat(self) -> Interval {
+        Interval(self, 0)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Hash, Debug, Ord, Eq)]
+pub struct Interval(IntervalBase, i8);
 
 impl PartialOrd for Interval {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -205,39 +217,53 @@ impl PartialOrd for Interval {
     }
 }
 
+impl HasAccidentals for IntervalBase {
+    type Output = Interval;
+    fn sharp(self) -> Interval {
+        self.natural().sharp()
+    }
+
+    fn natural(self) -> Interval {
+        Interval(self, 0)
+    }
+
+    fn flat(self) -> Interval {
+        self.natural().flat()
+    }
+}
+
 impl HasAccidentals for Interval {
     type Output = Self;
     fn sharp(self) -> Self {
-        Interval::Sharpened(Box::new(self))
+        Interval(self.0, self.1 + 1)
     }
 
-    fn nat(self) -> Self {
-        // TODO
-        unreachable!()
+    fn natural(self) -> Self {
+        self.0.natural()
     }
 
     fn flat(self) -> Self {
-        Interval::Flattened(Box::new(self))
+        Interval(self.0, self.1 - 1)
     }
 }
 
 impl From<PitchClass> for Interval {
     fn from(pitch: PitchClass) -> Interval {
         let n = pitch.rep;
-        use self::Interval::*;
+        use self::IntervalBase::*;
         match n {
-            0 => Unison,
+            0 => Unison.natural(),
             1 => Second.flat(),
-            2 => Second,
+            2 => Second.natural(),
             3 => Third.flat(),
-            4 => Third,
-            5 => Fourth,
+            4 => Third.natural(),
+            5 => Fourth.natural(),
             6 => Fifth.flat(),
-            7 => Fifth,
+            7 => Fifth.natural(),
             8 => Sixth.flat(),
-            9 => Sixth,
+            9 => Sixth.natural(),
             10 => Seventh.flat(),
-            11 => Seventh,
+            11 => Seventh.natural(),
             _ => unreachable!(),
         }
     }
@@ -245,35 +271,34 @@ impl From<PitchClass> for Interval {
 
 impl From<Interval> for PitchClass {
     fn from(interval: Interval) -> PitchClass {
-        use self::Interval::*;
-        match interval {
-            Unison => pc(0),
-            Second => pc(2),
-            Third => pc(4),
-            Fourth => pc(5),
-            Fifth => pc(7),
-            Sixth => pc(9),
-            Seventh => pc(11),
-            Flattened(i) => PitchClass::from(*i).shift(-1),
-            Sharpened(i) => PitchClass::from(*i).shift(1),
-        }
+        use self::IntervalBase::*;
+        let Interval(base, acc) = interval;
+        let base_val = match base {
+            Unison => 0,
+            Second => 2,
+            Third => 4,
+            Fourth => 5,
+            Fifth => 7,
+            Sixth => 9,
+            Seventh => 11,
+        };
+        pc(base_val + acc)
     }
 }
 
 impl Interval {
-    pub fn semitones(&self) -> i8 {
-        use self::Interval::*;
-        match self {
-            &Unison => 0,
-            &Second => 2,
-            &Third => 4,
-            &Fourth => 5,
-            &Fifth => 7,
-            &Sixth => 9,
-            &Seventh => 11,
-            &Flattened(ref i) => i.semitones() - 1,
-            &Sharpened(ref i) => i.semitones() + 1,
-        }
+    pub fn semitones(self) -> i8 {
+        use self::IntervalBase::*;
+        let Interval(base, acc) = self;
+        acc + (match base {
+            Unison => 0,
+            Second => 2,
+            Third => 4,
+            Fourth => 5,
+            Fifth => 7,
+            Sixth => 9,
+            Seventh => 11,
+        })
     }
 
     pub fn equiv_with_base(self, other: &Self) -> Self {
@@ -370,10 +395,10 @@ impl Add for Interval {
 }
 
 impl Chord {
-    pub fn based_on(&self, base: &Note) -> HashSet<Note> {
+    pub fn based_on(&self, base: Note) -> HashSet<Note> {
         self.intervals
             .iter()
-            .map(|interval| base.up(interval))
+            .map(|interval| base.up(*interval))
             .collect()
     }
 }
@@ -381,8 +406,8 @@ impl Chord {
 macro_rules! chord {
     ( $( $x:expr ),* ) => {
         {
-            use self::Interval::*;
-            let mut ret = HashSet::new();
+            use self::intervals::*;
+            let mut ret: HashSet<Interval> = HashSet::new();
             $(
                 ret.insert($x);
             )*
@@ -394,8 +419,8 @@ macro_rules! chord {
 macro_rules! scale {
     ( $( $x:expr ),* ) => {
         {
-            use self::Interval::*;
-            let mut ret = Vec::new();
+            use self::intervals::*;
+            let mut ret: Vec<Interval> = Vec::new();
             $(
                 ret.push($x);
             )*
@@ -405,35 +430,31 @@ macro_rules! scale {
 }
 
 lazy_static! {
-    pub static ref MAJOR_TRIAD: Chord = chord![Unison,Third,Fifth];
-
-    pub static ref MAJOR_SCALE: Scale = scale![Unison,Second,Third,Fourth,Fifth,Sixth,Seventh];
+    pub static ref MAJOR_TRIAD: Chord = chord![UNISON,THIRD,FIFTH];
+    pub static ref MAJOR_SCALE: Scale = scale![UNISON,SECOND,THIRD,FOURTH,FIFTH,SIXTH,SEVENTH];
     pub static ref MELODIC_MINOR: Scale =
-        scale![Unison,Second,Third.flat(),Fourth,Fifth,Sixth.flat(),Seventh];
+        scale![UNISON,SECOND,THIRD.flat(),FOURTH,FIFTH,SIXTH.flat(),SEVENTH];
 }
 
 pub mod notes {
     use super::*;
-    lazy_static! {
-        pub static ref A: Note = NoteBase::A.into();
-        pub static ref B: Note = NoteBase::B.into();
-        pub static ref C: Note = NoteBase::C.into();
-        pub static ref D: Note = NoteBase::D.into();
-        pub static ref E: Note = NoteBase::E.into();
-        pub static ref F: Note = NoteBase::F.into();
-        pub static ref G: Note = NoteBase::G.into();
-    }
+    pub const A: Note = Note(NoteBase::A,0);
+    pub const B: Note = Note(NoteBase::B,0);
+    pub const C: Note = Note(NoteBase::C,0);
+    pub const D: Note = Note(NoteBase::D,0);
+    pub const E: Note = Note(NoteBase::E,0);
+    pub const F: Note = Note(NoteBase::F,0);
+    pub const G: Note = Note(NoteBase::G,0);
+
 }
 
 pub mod intervals {
     use super::*;
-    lazy_static! {
-        pub static ref UNISON: Interval = Interval::Unison;
-        pub static ref SECOND: Interval = Interval::Second;
-        pub static ref THIRD: Interval = Interval::Third;
-        pub static ref FOURTH: Interval = Interval::Fourth;
-        pub static ref FIFTH: Interval = Interval::Fifth;
-        pub static ref SIXTH: Interval = Interval::Sixth;
-        pub static ref SEVENTH: Interval = Interval::Seventh;
-    }
+    pub const UNISON: Interval = Interval(IntervalBase::Unison,0);
+    pub const SECOND: Interval = Interval(IntervalBase::Second,0);
+    pub const THIRD: Interval = Interval(IntervalBase::Third,0);
+    pub const FOURTH: Interval = Interval(IntervalBase::Fourth,0);
+    pub const FIFTH: Interval = Interval(IntervalBase::Fifth,0);
+    pub const SIXTH: Interval = Interval(IntervalBase::Sixth,0);
+    pub const SEVENTH: Interval = Interval(IntervalBase::Seventh,0);
 }
