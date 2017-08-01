@@ -305,9 +305,7 @@ impl Interval {
         let my_pitch = PitchClass::from(self.clone());
         let their_pitch = PitchClass::from(other.clone());
         let up_diff = (their_pitch - my_pitch).rep;
-        dump!(up_diff);
         let down_diff = (my_pitch - their_pitch).rep;
-        dump!(down_diff);
         match up_diff.cmp(&down_diff) {
             Ordering::Greater => self.flat().equiv_with_base(other),
             Ordering::Less => self.sharp().equiv_with_base(other),
@@ -335,11 +333,42 @@ impl fmt::Display for Chord {
         for i in &intervals {
             write!(
                 f,
-                "{:?} ",
+                "{} ",
                 i,
             )?;
         }
         write!(f, "]")
+    }
+}
+
+
+impl fmt::Display for IntervalBase {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::IntervalBase::*;
+        let it = match *self {
+            Unison => "R",
+            Second => "2",
+            Third => "3",
+            Fourth => "4",
+            Fifth => "5",
+            Sixth => "6",
+            Seventh => "7",
+        };
+        write!(f, "{}", it)
+
+    }
+}
+
+impl fmt::Display for Interval {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let Interval(base, acc) = *self;
+        let rest: String = match acc.cmp(&0i8) {
+            Ordering::Equal => "".into(),
+            Ordering::Greater => (0..acc).map(|_| "#").collect(),
+            Ordering::Less => (0..-acc).map(|_| "b").collect(),
+        };
+        write!(f, "{}", rest)?;
+        write!(f, "{}", base)
     }
 }
 
@@ -362,7 +391,6 @@ impl Scale {
     pub fn diatonic_chords(&self) -> Vec<Chord> {
         let mut chords = Vec::new();
         let intervals = &self.intervals;
-        dump!(intervals);
         let n = intervals.len();
         for (i, interval) in intervals.iter().enumerate() {
             let mut chord_intervals: HashSet<Interval> = HashSet::new();
