@@ -60,9 +60,8 @@ trait HasAccidnetals
     }
 }
 
-#[allow(dead_code)]
-#[derive(Clone, PartialEq, Hash, Debug, Eq)]
-pub enum Note {
+#[derive(Copy, Clone, PartialEq, Hash, Debug, Eq)]
+enum NoteBase {
     A,
     B,
     C,
@@ -70,9 +69,10 @@ pub enum Note {
     E,
     F,
     G,
-    Flattened(Box<Note>),
-    Sharpened(Box<Note>),
 }
+
+#[derive(Copy, Clone, PartialEq, Hash, Debug, Eq)]
+pub struct Note(NoteBase, i8);
 
 impl Note {
     pub fn up(&self, interval: &Interval) -> Self {
@@ -97,11 +97,11 @@ pub enum Accidental {
 
 impl HasAccidnetals for Note {
     fn sharp(self) -> Self {
-        Note::Sharpened(Box::new(self))
+        Note(self.0, self.1 + 1)
     }
 
     fn flat(self) -> Self {
-        Note::Flattened(Box::new(self))
+        Note(self.0, self.1 - 1)
     }
 }
 
@@ -117,38 +117,48 @@ impl EnharmonicEquiv<Note> for Note {
 
 impl From<Note> for PitchClass {
     fn from(note: Note) -> PitchClass {
-        use self::Note::*;
-        match note {
-            A => pc(0),
-            B => pc(2),
-            C => pc(3),
-            D => pc(5),
-            E => pc(7),
-            F => pc(8),
-            G => pc(10),
-            Flattened(n) => PitchClass::from(*n).shift(-1),
-            Sharpened(n) => PitchClass::from(*n).shift(1),
-        }
+        use self::NoteBase::*;
+        let Note(base, accs) = note;
+        let base_val = match base {
+            A => 0,
+            B => 2,
+            C => 3,
+            D => 5,
+            E => 7,
+            F => 8,
+            G => 10,
+        };
+        pc(base_val + accs)
+    }
+}
+
+impl From<NoteBase> for Note {
+    fn from(base: NoteBase) -> Note {
+        Note(base, 0)
     }
 }
 
 impl From<PitchClass> for Note {
     fn from(pitch: PitchClass) -> Note {
+        fn note(it: NoteBase) -> Note {
+            Note::from(it)
+        }
+
         let n = pitch.rep;
-        use self::Note::*;
+        use self::NoteBase::*;
         match n {
-            0 => A,
-            1 => B.flat(),
-            2 => B,
-            3 => C,
-            4 => D.flat(),
-            5 => D,
-            6 => E.flat(),
-            7 => E,
-            8 => F,
-            9 => G.flat(),
-            10 => G,
-            11 => A.flat(),
+            0 => note(A),
+            1 => note(B).flat(),
+            2 => note(B),
+            3 => note(C),
+            4 => note(D).flat(),
+            5 => note(D),
+            6 => note(E).flat(),
+            7 => note(E),
+            8 => note(F),
+            9 => note(G).flat(),
+            10 => note(G),
+            11 => note(A).flat(),
             _ => unreachable!(),
         }
     }
@@ -377,13 +387,13 @@ lazy_static! {
 pub mod notes {
     use super::*;
     lazy_static! {
-        pub static ref A: Note = Note::A;
-        pub static ref B: Note = Note::B;
-        pub static ref C: Note = Note::C;
-        pub static ref D: Note = Note::D;
-        pub static ref E: Note = Note::E;
-        pub static ref F: Note = Note::F;
-        pub static ref G: Note = Note::G;
+        pub static ref A: Note = NoteBase::A.into();
+        pub static ref B: Note = NoteBase::B.into();
+        pub static ref C: Note = NoteBase::C.into();
+        pub static ref D: Note = NoteBase::D.into();
+        pub static ref E: Note = NoteBase::E.into();
+        pub static ref F: Note = NoteBase::F.into();
+        pub static ref G: Note = NoteBase::G.into();
     }
 }
 
