@@ -45,11 +45,11 @@ impl Sub for PitchClass {
     }
 }
 
-trait Shiftable {
+pub trait Shiftable {
     fn shift<T: Into<i8>>(self, amt: T) -> Self;
 }
 
-trait HasAccidentals
+pub trait HasAccidentals
     where Self: Sized
 {
     type Output: HasAccidentals;
@@ -359,6 +359,25 @@ impl fmt::Display for IntervalBase {
     }
 }
 
+impl fmt::Display for NoteBase {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        <Self as fmt::Debug>::fmt(self, f)
+    }
+}
+
+impl fmt::Display for Note {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let Note(base, acc) = *self;
+        write!(f, "{}", base)?;
+        let rest: String = match acc.cmp(&0i8) {
+            Ordering::Equal => "".into(),
+            Ordering::Greater => (0..acc).map(|_| "#").collect(),
+            Ordering::Less => (0..-acc).map(|_| "b").collect(),
+        };
+        write!(f, "{}", rest)
+    }
+}
+
 impl fmt::Display for Interval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Interval(base, acc) = *self;
@@ -478,6 +497,10 @@ pub mod notes {
 
 pub mod intervals {
     use super::*;
+    pub use super::Shiftable;
+    pub use super::HasAccidentals;
+    pub use super::EnharmonicEquiv;
+
     pub const UNISON: Interval = Interval(IntervalBase::Unison,0);
     pub const SECOND: Interval = Interval(IntervalBase::Second,0);
     pub const THIRD: Interval = Interval(IntervalBase::Third,0);

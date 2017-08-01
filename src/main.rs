@@ -17,5 +17,8 @@ fn main() {
     dump!(FIFTH.clone().equiv_with_base(&FOURTH));
     for chord in MAJOR_SCALE.diatonic_chords() {
         println!("{}", chord);
+        for note in chord.based_on(F.flat()) {
+            println!("Note: {}", note);
+        }
     }
 }
