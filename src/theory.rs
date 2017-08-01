@@ -46,14 +46,16 @@ trait Shiftable {
     fn shift<T: Into<i8>>(self, amt: T) -> Self;
 }
 
-trait HasAccidnetals
+trait HasAccidentals
     where Self: Sized
 {
-    fn flat(self) -> Self;
-    fn sharp(self) -> Self;
-    fn modify(self, &acc: &Accidental) -> Self {
+    type Output: HasAccidentals;
+    fn flat(self) -> Self::Output;
+    fn sharp(self) -> Self::Output;
+    fn nat(self) -> Self::Output;
+    fn modify(self, &acc: &Accidental) -> Self::Output {
         match acc {
-            Natural => self,
+            Natural => self.nat(),
             Flat => self.flat(),
             Sharp => self.sharp(),
         }
@@ -75,6 +77,10 @@ enum NoteBase {
 pub struct Note(NoteBase, i8);
 
 impl Note {
+    fn base(self) -> NoteBase {
+        self.0
+    }
+
     pub fn up(&self, interval: &Interval) -> Self {
         let semitones = interval.semitones();
         let note_num = PitchClass::from(self.clone());
@@ -95,9 +101,29 @@ pub enum Accidental {
     Sharp,
 }
 
-impl HasAccidnetals for Note {
+impl HasAccidentals for NoteBase {
+    type Output = Note;
+    fn sharp(self) -> Note {
+        self.nat().sharp()
+    }
+
+    fn nat(self) -> Note {
+        Note(self, 0)
+    }
+
+    fn flat(self) -> Note {
+        self.nat().flat()
+    }
+}
+
+impl HasAccidentals for Note {
+    type Output = Self;
     fn sharp(self) -> Self {
         Note(self.0, self.1 + 1)
+    }
+
+    fn nat(self) -> Self {
+        self.base().nat()
     }
 
     fn flat(self) -> Self {
@@ -140,25 +166,21 @@ impl From<NoteBase> for Note {
 
 impl From<PitchClass> for Note {
     fn from(pitch: PitchClass) -> Note {
-        fn note(it: NoteBase) -> Note {
-            Note::from(it)
-        }
-
         let n = pitch.rep;
         use self::NoteBase::*;
         match n {
-            0 => note(A),
-            1 => note(B).flat(),
-            2 => note(B),
-            3 => note(C),
-            4 => note(D).flat(),
-            5 => note(D),
-            6 => note(E).flat(),
-            7 => note(E),
-            8 => note(F),
-            9 => note(G).flat(),
-            10 => note(G),
-            11 => note(A).flat(),
+            0 => A.nat(),
+            1 => B.flat(),
+            2 => B.nat(),
+            3 => C.nat(),
+            4 => D.flat(),
+            5 => D.nat(),
+            6 => E.flat(),
+            7 => E.nat(),
+            8 => F.nat(),
+            9 => G.flat(),
+            10 => G.nat(),
+            11 => A.flat(),
             _ => unreachable!(),
         }
     }
@@ -183,9 +205,15 @@ impl PartialOrd for Interval {
     }
 }
 
-impl HasAccidnetals for Interval {
+impl HasAccidentals for Interval {
+    type Output = Self;
     fn sharp(self) -> Self {
         Interval::Sharpened(Box::new(self))
+    }
+
+    fn nat(self) -> Self {
+        // TODO
+        unreachable!()
     }
 
     fn flat(self) -> Self {
