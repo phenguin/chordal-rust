@@ -271,10 +271,10 @@ impl fmt::Display for Chord {
         write!(f, "[")?;
         for i in &intervals {
             write!(
-                    f,
-                    "{:?} ",
-                    i,
-                )?;
+                f,
+                "{:?} ",
+                i,
+            )?;
         }
         write!(f, "]")
     }
@@ -341,59 +341,61 @@ impl Chord {
 }
 
 macro_rules! chord {
-        ( $( $x:expr ),* ) => {
-            {
-                use self::Interval::*;
-                let mut ret = HashSet::new();
-                $(
-                    ret.insert($x);
-                )*
-                    chord(ret)
-            }
+    ( $( $x:expr ),* ) => {
+        {
+            use self::Interval::*;
+            let mut ret = HashSet::new();
+            $(
+                ret.insert($x);
+            )*
+                chord(ret)
         }
     }
+}
 
 macro_rules! scale {
-        ( $( $x:expr ),* ) => {
-            {
-                use self::Interval::*;
-                let mut ret = Vec::new();
-                $(
-                    ret.push($x);
-                )*
-                    scale(ret)
-            }
+    ( $( $x:expr ),* ) => {
+        {
+            use self::Interval::*;
+            let mut ret = Vec::new();
+            $(
+                ret.push($x);
+            )*
+                scale(ret)
         }
     }
+}
 
 lazy_static! {
-        pub static ref MAJOR_TRIAD: Chord = chord![Unison,Third,Fifth];
+    pub static ref MAJOR_TRIAD: Chord = chord![Unison,Third,Fifth];
 
-        pub static ref MAJOR_SCALE: Scale = scale![Unison,Second,Third,Fourth,Fifth,Sixth,Seventh];
-        pub static ref MELODIC_MINOR: Scale = scale![Unison,Second,Third.flat(),Fourth,Fifth,Sixth.flat(),Seventh] ;
-    }
+    pub static ref MAJOR_SCALE: Scale = scale![Unison,Second,Third,Fourth,Fifth,Sixth,Seventh];
+    pub static ref MELODIC_MINOR: Scale =
+        scale![Unison,Second,Third.flat(),Fourth,Fifth,Sixth.flat(),Seventh];
+}
+
 pub mod notes {
     use super::*;
     lazy_static! {
-            pub static ref A: Note = Note::A;
-            pub static ref B: Note = Note::B;
-            pub static ref C: Note = Note::C;
-            pub static ref D: Note = Note::D;
-            pub static ref E: Note = Note::E;
-            pub static ref F: Note = Note::F;
-            pub static ref G: Note = Note::G;
-        }
+        pub static ref A: Note = Note::A;
+        pub static ref B: Note = Note::B;
+        pub static ref C: Note = Note::C;
+        pub static ref D: Note = Note::D;
+        pub static ref E: Note = Note::E;
+        pub static ref F: Note = Note::F;
+        pub static ref G: Note = Note::G;
+    }
 }
 
 pub mod intervals {
     use super::*;
     lazy_static! {
-            pub static ref UNISON: Interval = Interval::Unison;
-            pub static ref SECOND: Interval = Interval::Second;
-            pub static ref THIRD: Interval = Interval::Third;
-            pub static ref FOURTH: Interval = Interval::Fourth;
-            pub static ref FIFTH: Interval = Interval::Fifth;
-            pub static ref SIXTH: Interval = Interval::Sixth;
-            pub static ref SEVENTH: Interval = Interval::Seventh;
-        }
+        pub static ref UNISON: Interval = Interval::Unison;
+        pub static ref SECOND: Interval = Interval::Second;
+        pub static ref THIRD: Interval = Interval::Third;
+        pub static ref FOURTH: Interval = Interval::Fourth;
+        pub static ref FIFTH: Interval = Interval::Fifth;
+        pub static ref SIXTH: Interval = Interval::Sixth;
+        pub static ref SEVENTH: Interval = Interval::Seventh;
+    }
 }
